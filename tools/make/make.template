@@ -1,0 +1,35 @@
+
+//###################################################
+//   gpgate - a gps-driven gate remote controller
+//- - - - - - - - - - - - - - - - - - - - - - - - - -
+//  CONFIGURATION FILE: private use, do not share!
+//---------------------------------------------------
+
+
+// ---------------
+//   RF settings
+
+#define RF_PULSELEN $$REPLACE_PULSE$$  // pulse length [ms]
+#define RF_PROTOCOL $$REPLACE_PROTOCOL$$  // sets trasmission protocol
+
+
+// ---------------
+//    WAYPOINTS
+
+//  entry waypoint is { latitude, longitude, id, label }
+const waypoint wps[] = {
+$$REPLACE_WAYPOINTS$$
+                };
+
+
+
+// ---------------
+//      GATES
+
+//  entry gate is { label, rf, color }
+const gate gates[] = {
+$$REPLACE_GATESS$$
+
+// sys variables
+const size_t nwps = sizeof(wps)/sizeof(wps[0]);
+const size_t ngates = sizeof(gates)/sizeof(gates[0]);
