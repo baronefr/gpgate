@@ -11,7 +11,7 @@
 #ifndef GPGATE_LOGIC_H
 #define GPGATE_LOGIC_H
 
-#include "../general.h"
+#include "general.h"
 #include "led.h"
 
 
