@@ -54,22 +54,22 @@ The configuration would look like this:
 const waypoint wps[] = {
                  { 46.23212, 6.04516, 1, "gate1" },  // main entrance
                  { 46.23175, 6.04617, 2, "gate2a" }, // exit
-                 { 46.23173, 6.04622, 2, "gate2b" }, // exit
+                 { 46.23173, 6.04622, 2, "gate2b" }, //   "  bis
                  { 46.23187, 6.04629, 3, "gate3a" }, // secondary entrance
-                 { 46.23184, 6.04633, 3, "gate3b" }  // 
+                 { 46.23184, 6.04633, 3, "gate3b" }  //   "   "  bis
                 };
 ```
 
 <br>
 
-Finally, the configuration file `mygates.h` has to be completed by inserting the pulse length of the signal and the **right transmission protocol** (see rc-switch usage) ...
+Finally, the configuration file `mygates.h` has to be completed by configuring the **pulse length** of the signal and the **transmission protocol** (see rc-switch usage) ...
 ```cpp
 #define RF_PULSELEN 420  // pulse length [ms]
 #define RF_PROTOCOL  10  // trasmission protocol
 ```
-... as well as the two size constants
+... as well as the two size constants (required by my code)
 ```cpp
-// sys variables
+// sys variables (do NOT edit)
 const size_t nwps = sizeof(wps)/sizeof(wps[0]);
 const size_t ngates = sizeof(gates)/sizeof(gates[0]);
 ```
@@ -77,9 +77,9 @@ const size_t ngates = sizeof(gates)/sizeof(gates[0]);
 
 ### How to find the coordinates and the rc codes?
 
-The GPS coordinates for your waypoints can be found using Google Maps, or you can use you own Arduino GPS module to find them. In the latter case, I suggest you look at this [example](https://github.com/mikalhart/TinyGPSPlus/tree/master/examples/FullExample) in the TinyGPS++ library.
+The **GPS coordinates** for your waypoints can be found using Google Maps, or you can use you own Arduino GPS module to find them. In the latter case, I suggest you look at this [example](https://github.com/mikalhart/TinyGPSPlus/tree/master/examples/FullExample) in the TinyGPS++ library. Don't use many digits in the coordinates: six will be fine!
 
-As for the radio codes, the documentation of rc-switch is the best way to start using radio controlled devices. I suggest to use a receiver module and this [sketch](https://github.com/sui77/rc-switch/tree/master/examples/ReceiveDemo_Advanced) to decode the RC code of your gates & find the right transmission protocol.
+As for the radio codes, **the documentation of rc-switch is the best way to start using radio controlled devices**. I suggest to use a receiver module and this [sketch](https://github.com/sui77/rc-switch/tree/master/examples/ReceiveDemo_Advanced) to decode the RC code of your gates & find the right transmission protocol.
 
 
 ### How to open the gate?
@@ -147,15 +147,15 @@ The minimal LED interface is given by the following functions:
 
 | Declaration     | Description |
 | ----------- | ----------- |
-| void init_led(); | A function which initializes the LED, to be called in setup().      |
-| void led\_set\_color(color\_t color);   | A function which changes the current LED color. The color is specified as hex values. |
+| `void init_led()` | A function which initializes the LED, to be called in `setup()`.      |
+| `void led_set_color(color_t color)`   | A function which changes the current LED color. The color is specified as hex values. |
 
 If the flag `USE_LED_ANIMATION` is defined in `general.h`, the Arduino sketch will operate the LED by calling a periodic update function to refresh the animation. In this case, it is necessary to provide two more functions:
 
 | Declaration (**only if LEDs are animated**) | Description |
 | ----------- | ----------- |
-| void led\_update(); |  A function which is periodically called (at freqency `LED\_FPS`, set in `general.h`) to update the LED. |
-| void led\_set\_animation(); | A function which selects the current animation. I suggest to use a (private) function pointer to select the right one. |
+| `void led_update()` |  A function which is periodically called (at freqency `LED_FPS`, set in `general.h`) to update the LED. |
+| `void led_set_animation()` | A function which selects the current animation. I suggest to use a (private) function pointer to select the right one. |
 
 Other properties like the `LED_TYPE` and `LED_NUMBER` can be defined in `led.cpp`, because they are not required to be available externally.
 
