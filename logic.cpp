@@ -10,6 +10,8 @@
 
 #include "logic.h"
 
+boolean BMAIN_crit = false;
+
 
 // -----------------
 //  gate operations
@@ -18,43 +20,75 @@
 void next_gate() {
   // cycle among available gates
   if((sys_current_gate++)==ngates) sys_current_gate=1;
-  led_set_color( gates[sys_current_gate].color );
+  led_set_color( gates[sys_current_gate-1].color );
 }
 
-void send_rf(gateid_t id) {
+void rc_send(gateid_t id) {
   // send signal to selected gate
-  rcsw.send( gates[id].rf );
-  Serial.print("[rf] signal sent\n");
+  rcsw.send( gates[id-1].rcc );
+  led_rc_signal();
+  #ifdef DEBUG
+   Serial.print("[rc] signal sent\n");
+  #endif
 }
 
 // -----------------
 //    BUTTON LOGIC
 // -----------------
-void long_press_action() {
-  BMAIN_long = true; Serial.println("[but] long press action!");
+
+// action for short button pressure
+void button_action() {
+  // send the signal to current gate
+  rc_send(sys_current_gate);
+  if(sys_state==SYS_MANUAL) TIC_status=millis();
+}
+
+// action for long button pressure
+void button_keypress() {
+  #ifdef DEBUG
+   Serial.println("[btt] long press");
+  #endif
   if(sys_state==SYS_FIXED) system_update(SYS_MANUAL);
   else if(sys_state==SYS_MANUAL) TIC_status=millis();
   next_gate();
 }
 
-void short_press_action() {
-   send_rf(sys_current_gate);
-   if(sys_state==SYS_MANUAL) TIC_status=millis();
+// action for very long button pressure
+void button_critical() {
+  #ifdef DEBUG
+   Serial.println("[btt] critical press");
+  #endif
+  system_update(SYS_SUSP);
 }
 
 void button_handler() {
-  // button operations
+  unsigned long this_time = millis();
+  
+  // handle the button keypress
   if(digitalRead(PIN_BMAIN)==HIGH) {
-    if(!BMAIN_active)
-       { BMAIN_active=true;  TIC_button = millis(); }
-    if( (millis()-TIC_button > BUTTON_LONG_TIME)&&(!BMAIN_long) ) long_press_action(); 
+    
+    if(!BMAIN_active)  // register time of activation
+      { BMAIN_active=true;  TIC_button = millis(); }
+    
+    if( this_time-TIC_button > BUTTON_LONG_TIME )
+      if(!BMAIN_long) { BMAIN_long = true;   button_keypress(); }
+      if(!BMAIN_crit && (this_time-TIC_button > BUTTON_CRIT_TIME))
+        {  BMAIN_crit = true; button_critical();  }
+    
   } else {
-    if(BMAIN_active)
-     { if(BMAIN_long) BMAIN_long=false; else short_press_action();
-       BMAIN_active=false; }
+    
+    if(BMAIN_active) {
+      
+      if(BMAIN_long) BMAIN_long=false;
+      else if(BMAIN_crit) BMAIN_crit=false;
+      else button_action();
+      
+      BMAIN_active=false; 
+    }
+    
   }
   
- }
+}
 
 
 
@@ -64,12 +98,20 @@ void button_handler() {
 
 boolean sys_premanual_fixed = false;
 
+void wakeup() {
+  #ifdef DEBUG
+    Serial.println("[sys] wakeup triggered");
+  #endif
+  sleep_disable();
+  detachInterrupt(digitalPinToInterrupt(2));
+}
+
 uint system_update(state_t new_state) {
   // updates system state
   if(sys_state==new_state) return 0;
   
   switch(new_state) {
-    #if DEBUG
+    #ifdef DEBUG
     case SYS_UNFIX:
       Serial.println("[sys] switching to UNFIXED state");
       break;
@@ -82,33 +124,37 @@ uint system_update(state_t new_state) {
     case SYS_MANUAL:
       sys_premanual_fixed = (sys_state==SYS_FIXED)?true:false;  // keep previous state in memory
      
-      #if DEBUG
+      #ifdef DEBUG
         Serial.println("[sys] switching to MANUAL state");
       #endif
       break;
 
     case SYS_AUTO:
       new_state = sys_premanual_fixed?SYS_FIXED:SYS_MANUAL;
-      #if DEBUG
-        Serial.println("[sys] Reverting manual mode");
+      #ifdef DEBUG
+        Serial.println("[sys] reverting manual mode");
       #endif
       break;
       
     case SYS_SUSP:
-      #if DEBUG
-        Serial.println("[sys] switching to SUSPENSION state");
+      #ifdef DEBUG
+        Serial.println("[sys] switching to sleep state");
       #endif
-      /*tick_susp = millis();               TODO
-      attachInterrupt(digitalPinToInterrupt(2),wakeup_animation,HIGH);
-      delay(100);
-      set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+      TIC_status = millis();
+      sys_state = SYS_SUSP;
+
+      led_set_color(0xFFFFFF);  // set color to white
+      
       sleep_enable();
-      sleep_mode();     //enters sleep
+      attachInterrupt(digitalPinToInterrupt(2), wakeup, HIGH);
+      set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+      
+      delay(100);
+      sleep_cpu();  // enters sleep ...
 
-      //... restart from here...
-
-      sleep_disable();
-      sys_state=SYS_UNFIX;*/
+      // ... & resume from here!
+      system_update(SYS_UNFIX);
+      return 0;
       break;
   }
 
@@ -133,7 +179,7 @@ unsigned char printedlines = 0;
 
 uint switch_logic(waypoint wp, double* dist); // defined below
 
-void waypoint_handler() { 
+void waypoint_handler() {
   
   double dist;    // distance used in the loop
   double min_dist=T_MAX_DOUBLE;  unsigned char min_id = 0;  // to store the minima
@@ -145,9 +191,10 @@ void waypoint_handler() {
     if(stable_counter==GPS_STABILITY_THRES) system_update(SYS_FIXED);
    }
   TIC_gps=millis();
-  
-  #if DEBUG
-   if(printedlines > DEBUG_MAX_LINES) //prints intestation row
+
+  #ifdef DEBUG
+  #ifdef DEBUG_MAX_TABLE_LINES
+   if(printedlines > DEBUG_MAX_TABLE_LINES) // prints intestation row
     {
      Serial.println();
      for(int i=0; i<nwps; i++) 
@@ -155,20 +202,29 @@ void waypoint_handler() {
      Serial.println(""); printedlines=0;
     }
   #endif
+  #endif
   
   for(unsigned char i=0; i<nwps; i++)    // computing distances to find minima
    {
     dist = TinyGPSPlus::distanceBetween(gps.location.lat(), gps.location.lng(), wps[i].lat, wps[i].lon);
     if(dist < min_dist) { min_id = i; min_dist=dist; }
-    #if DEBUG
+    #ifdef DEBUG
+    #ifdef DEBUG_MAX_TABLE_LINES
      Serial.print(dist, 3);  Serial.print("  "); 
+    #endif
     #endif
    } 
   
-  #if DEBUG
+  #ifdef DEBUG
+  #ifdef DEBUG_MAX_TABLE_LINES
    Serial.print(" -> min ");  Serial.println(wps[min_id].id);  printedlines++;
+   #else
+   Serial.print("  [gps] closest WP is ");  Serial.print(wps[min_id].label);
+   Serial.print(" -> gate ");        Serial.println(gates[wps[min_id].id-1].label);
   #endif
-
+  
+  #endif
+  
   switch_logic( wps[min_id], &dist);
 }
 
@@ -182,8 +238,9 @@ unsigned char switch_counter = 0;
 
 const size_t SUSP_MARKER = ngates + 1;
 
-uint switch_logic(waypoint wp, double* dist) { // candidate waypoint & distance
-  // decide change of current gate
+uint switch_logic(waypoint wp, double* dist) {
+  // manage a change of current gate
+  // args:  candidate waypoint & distance
 
   gateid_t cand_gate;  
 
@@ -198,15 +255,15 @@ uint switch_logic(waypoint wp, double* dist) { // candidate waypoint & distance
   
   if(sys_state==SYS_MANUAL)   return 0;  // in manual mode don't do anything
   else if(cand_gate==sys_current_gate) return 0;  // no need to change if currently in right gate!
-  else if(cand_gate==SUSP_MARKER) {
-    system_update(SYS_SUSP);
-  }
+  
+  else if(cand_gate==SUSP_MARKER)  system_update(SYS_SUSP);
+  
   else {
     sys_current_gate = cand_gate;
-    #if DEBUG
-      Serial.print("[log] Switched to G");  Serial.println(cand_gate);
+    #ifdef DEBUG
+      Serial.print("[log] Gate switched to G#");  Serial.println(gates[cand_gate-1].label);
     #endif
-    led_set_color( gates[cand_gate].color );
+    led_set_color( gates[cand_gate-1].color );
   }
   
   return 1;

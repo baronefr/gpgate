@@ -20,9 +20,11 @@ void init_led();
 // In this file you have to implement some variables & methods
 void led_set_color(color_t color);
 
+void led_rc_signal();
+
 #ifdef USE_LED_ANIMATION
-    void led_update();                // update the led
-    extern void led_set_animation();  // a function which updates the animation depending on system status
+    void led_update();           // update the led
+    void led_set_animation();    // a function which updates the animation depending on system status
 #endif
 
 

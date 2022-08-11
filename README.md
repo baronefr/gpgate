@@ -101,7 +101,7 @@ You can enter manual mode by **keeping keypressed the button for 1 second**. Eve
 
 ## Setup
 
-You have to create your own `mygate.h` file, which will provide your waypoints and gates to the sketch. Take a look at the template file `demo_mygate.h` and at the previous section for more details.
+You have to create your own `mygate.h` file, which will provide your waypoints and gates to the sketch. Take a look at the template file `mygate_demo.h` and at the previous section for more details.
 
 The file `general.h` will include the **hardware configuration** of you Arduino sketch, i.e. the pin configuration. My one, on an Arduino Nano, is the following:
 ```cpp

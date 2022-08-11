@@ -12,7 +12,7 @@
 
 // --------------------------------------
 //  MY SETUP: a ring of 7 leds
-// --------------------------------------
+//
 
 // general properties
 #define LED_TYPE         WS2812B
@@ -53,30 +53,35 @@ unsigned int led_animation_counter;  // counter for animation update
 
 void sinelon() 
  {  // animation 'cycle go and back'
-  fadeToBlackBy(leds,LED_NUMBER,10);
+  fadeToBlackBy(leds,LED_NUMBER, LED_ANIMATION_FADE);
   leds[beatsin16(12,0,LED_NUMBER-2)]=led_color;
  }
 
 void spiral() 
  {  // animation 'full cycle'
   if(led_animation_counter>=(LED_NUMBER-1)*(LED_FPS/3)) led_animation_counter=0;
-  fadeToBlackBy(leds,LED_NUMBER,20);
+  fadeToBlackBy(leds,LED_NUMBER, LED_ANIMATION_FADE);
   leds[led_animation_counter++/(LED_FPS/3)]=led_color;
  }
 
 void dual()
  {  // animation 'dual alternate'
-  fadeToBlackBy(leds,LED_NUMBER,25); led_animation_counter++;
+  fadeToBlackBy(leds,LED_NUMBER, LED_ANIMATION_FADE); led_animation_counter++;
   if(led_animation_counter==LED_FPS/2) leds[1]=leds[0]=leds[5]=led_color;
   else if(led_animation_counter>=LED_FPS) { leds[2]=leds[3]=leds[4]=led_color; led_animation_counter=0; }
  }
 
 void pulse()
  {  // animation 'impulse'
-  fadeToBlackBy(leds,LED_NUMBER,30); 
+  fadeToBlackBy(leds,LED_NUMBER, LED_ANIMATION_FADE); 
   if(led_animation_counter++>=LED_FPS/2)
    { monochrome(led_color);  led_animation_counter=0; }
  }
+
+
+void led_rc_signal() {
+  leds[LED_NUMBER-1] = CRGB(255,255,255);
+}
 
 
 // animation refresh
@@ -90,7 +95,6 @@ void led_set_animation() {
         led_animator = spiral;   break;
     case SYS_MANUAL: 
         led_animator = dual;     break;
-    //case A_PULSE: pulse(current);   // unused
    }
   led_animation_counter=0;
 }

@@ -14,9 +14,10 @@
 #include "general.h"
 #include "led.h"
 
-
+#include <Arduino.h>
 #include <RCSwitch.h>
 #include <TinyGPS++.h>
+#include <avr/sleep.h>
 
 extern RCSwitch rcsw;
 extern TinyGPSPlus gps;

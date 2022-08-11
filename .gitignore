@@ -3,3 +3,6 @@ mygate.h
 
 # tmps
 **/tmp
+
+# source of images
+**.drawio
