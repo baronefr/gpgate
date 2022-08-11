@@ -1,9 +1,9 @@
 <h1 align="center">gpgate</h1>
 <p align="center">aka <i>Global Positioning GATE</i> (remote controller)</p>
 
-This sketch implements a gate remote control system based on GPS position. I coded this back in 2020 to fritter away time during a COVID lockdown, but I think it is an idea worthy to be published, even if the project is not completed.
+This sketch implements a gate remote control system based on GPS position. I coded this back in 2020 to fritter away time during a COVID lockdown, but I think it is an idea worthy to be published.
 
-**Current development status**: **BETA** - The sketch works fine under real-life tests. Need to test more outside Debug Mode to be sure that there are no nasty bugs so far. However, there is the need to implement some other functions before the final release (see *Development TODO* list).
+**Current development status**: **BETA** - The sketch works fine under real-life tests. Need to test a bit more outside Debug Mode to be sure that there are no nasty bugs so far.
 
 <br>
 
@@ -31,7 +31,7 @@ The first value is just a string used as identifier (for debug). The second valu
 As for the **waypoints**, they are prompted too as an array of structured values. We are required to specify the latitude & longitude (first two double values). The third entry is (as unsigned int) the number of the gate, which is determined by the order specified in the array `gates[]` above). Finally, the fourth value is just a label for debug prints.
 
 ```cpp
-//  entry waypoint is { latitude, longitude, id, label }
+//  entry waypoint is { latitude, longitude, gate number, label }
 const waypoint wps[] = {
                  { 46.23212, 6.04516, 1, "gate1" },  // main entrance
                  { 46.23176, 6.04611, 2, "gate2" },  // exit
@@ -50,7 +50,7 @@ If you like, you can **associate more waypoints to each gate**. This might impro
 ![ex2](img/maps-sel2.png)
 The configuration would look like this:
 ```cpp
-//  entry waypoint is { latitude, longitude, id, label }
+//  entry waypoint is { latitude, longitude, gate number, label }
 const waypoint wps[] = {
                  { 46.23212, 6.04516, 1, "gate1" },  // main entrance
                  { 46.23175, 6.04617, 2, "gate2a" }, // exit
@@ -64,8 +64,8 @@ const waypoint wps[] = {
 
 Finally, the configuration file `mygates.h` has to be completed by configuring the **pulse length** of the signal and the **transmission protocol** (see rc-switch usage) ...
 ```cpp
-#define RF_PULSELEN 420  // pulse length [ms]
-#define RF_PROTOCOL  10  // trasmission protocol
+#define RC_PULSELEN 400  // pulse length [ms]
+#define RC_PROTOCOL  10  // trasmission protocol
 ```
 ... as well as the two size constants (required by my code)
 ```cpp
@@ -93,9 +93,11 @@ The LED color will inform you of the currently selected gate. Use a short keypre
 
 Hopefully, the GPS signal will be accurate most of the time - aka, the GPS is **fixed**. However, there there might be circumstances in which the GPS is **unfixed**. In this scenario, gpgate will keep the last gate selection (the first gate, if the system has just booted).
 
-There is a way to still use gpgate without the GPS fix: the **manual mode**. This mode will allow you to **choose a gate and keep it selected for 30 seconds**. After the time expires, gpgate will automatically revert to GPS fixed/unfixed mode. 
+There is a way to still use gpgate without the GPS fix: the **manual mode**. This mode will allow you to **choose a gate and keep it selected for 15 seconds**. After the time expires, gpgate will automatically revert to GPS fixed/unfixed mode. 
 
 You can enter manual mode by **keeping keypressed the button for 1 second**. Every long press of 1 second in manual mode will select the next gate (in the order of declaration). You should see the LED color change according to your selection. As usual, a short pressure of the button will send the RC signal to the manually selected gate. 
+
+If you keep the button keypressed for more than 5 seconds, the system enters **suspension mode**. Only the GPS module is powered, to keep the alignment, while LED & CPU are powered down. To resume the operative status, press again the button.
 
 <br>
 
@@ -110,14 +112,15 @@ The file `general.h` will include the **hardware configuration** of you Arduino 
 // ---------------
 //   INTERFACE
 // ---------------
-#define USB_BAUD 115200  // USB baud rate (DEBUG only)
-#define GPSBAUD    9600  // GPS module baud rate
+#define USB_BAUD 115200  // USB baud rate for config purpose
+#define GPS_BAUD   9600  // GPS module baud rate
 
-#define PIN_BMAIN   A5   //control button pin
-#define PIN_GPS_TX   2   //GPS tx-pin
-#define PIN_GPS_RX   3   //GPS rx-pin
-#define PIN_LED     A2   //LED clock contrl pin
-#define PIN_RF      A4   //trasmitter pin
+#define PIN_BMAIN    2   // control button pin
+//      ^^^^^   note:  check if this button can be used to wake up from sleep!
+#define PIN_GPS_TX   7   // GPS tx-pin
+#define PIN_GPS_RX   6   // GPS rx-pin
+#define PIN_LED     A2   // LED clock contrl pin
+#define PIN_RC      A4   // trasmitter pin
 
 ...
 ```
@@ -128,8 +131,9 @@ This file will also set all the properties and configuration of the gpgate logic
 Finally, we **require the following Arduino libraries** to compile the sketch:
 - rc-switch ([git](https://github.com/sui77/rc-switch))
 - TinyGPS++ ([git](https://github.com/mikalhart/TinyGPSPlus/))
-- FastLED ([git](https://github.com/FastLED/FastLED)) (if you use my animations module)
+- LowPower ([built-in](https://www.arduino.cc/reference/en/libraries/arduino-low-power/))
 - SoftwareSerial ([built-in](https://docs.arduino.cc/learn/built-in-libraries/software-serial))
+- FastLED ([git](https://github.com/FastLED/FastLED)) (if you use my animations module)
 
 You notice that there are many C++ files in the sketch folder, but the main one of course has the *.ino* extension: `gpgate.ino`. Open it with Arduino IDE, compile & upload to your Arduino device when everything is configured.
 
@@ -147,8 +151,11 @@ The minimal LED interface is given by the following functions:
 
 | Declaration     | Description |
 | ----------- | ----------- |
-| `void init_led()` | A function which initializes the LED, to be called in `setup()`.      |
+| `void setup_led()` | A function which initializes the LED, to be called in `setup()`.      |
 | `void led_set_color(color_t color)`   | A function which changes the current LED color. The color is specified as hex values. |
+| `void led_rc_signal()` | A function to set a LED action when a signal is sent to a gate (in my case I temporarily change a LED color to white). |
+| `void led_sleep_mode()` | A function to set the LED for sleep mode (I switch them off, in my case). |
+
 
 If the flag `USE_LED_ANIMATION` is defined in `general.h`, the Arduino sketch will operate the LED by calling a periodic update function to refresh the animation. In this case, it is necessary to provide two more functions:
 
@@ -159,11 +166,16 @@ If the flag `USE_LED_ANIMATION` is defined in `general.h`, the Arduino sketch wi
 
 Other properties like the `LED_TYPE` and `LED_NUMBER` can be defined in `led.cpp`, because they are not required to be available externally.
 
+
+
+<br>
+
 ## Develoment: TODO list
 
-**High priority**
-- use HDOP as a criteria for GPS fix control
-- implement a suspension/wake-up system to save energy
+**High priority** General bug test under real life circumstances. If you test yourself & find some bug, pleas open a Issue on GitHub.
 
-**Really extra**
+**Low priority**
+- use HDOP as a criteria for GPS fix control
+
+**If you would like to contribute: (open a Issue)**
 - solder the circuit on PCB and build a 3D printable case
