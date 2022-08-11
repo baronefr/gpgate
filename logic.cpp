@@ -2,7 +2,7 @@
 //   gpgate - a gps-driven gate controller
 //- - - - - - - - - - - - - - - - - - - - - - - - - -
 //  coded by Francesco Barone | github.com/baronefr
-//  under Open Access licence
+//  under MIT licence
 //---------------------------------------------------
 //   This file implements the logical functions
 //  behind gpgate.

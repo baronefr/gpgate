@@ -2,7 +2,7 @@
 //   gpgate - a gps-driven gate remote controller
 //- - - - - - - - - - - - - - - - - - - - - - - - - -
 //  coded by Francesco Barone | github.com/baronefr
-//  under Open Access licence
+//  under MIT licence
 //---------------------------------------------------
 //   This file defines the LED interface.
 //---------------------------------------------------

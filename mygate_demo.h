@@ -2,7 +2,7 @@
 //###################################################
 //   gpgate - a gps-driven gate remote controller
 //- - - - - - - - - - - - - - - - - - - - - - - - - -
-//  CONFIGURATION FILE   (this is an exsample)
+//  CONFIGURATION FILE   (this is an example)
 //---------------------------------------------------
 
 
