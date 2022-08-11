@@ -172,10 +172,12 @@ Other properties like the `LED_TYPE` and `LED_NUMBER` can be defined in `led.cpp
 
 ## Develoment: TODO list
 
-**High priority** General bug test under real life circumstances. If you test yourself & find some bug, pleas open a Issue on GitHub.
+**High priority**
+- General bug test. If you test yourself & find some bug, pleas open a Issue on GitHub.
 
-**Low priority**
-- use HDOP as a criteria for GPS fix control
-
-**If you would like to contribute: (open a Issue)**
+**Some ideas (low priority)**
+- Use HDOP as a criteria for GPS fix control
 - solder the circuit on PCB and build a 3D printable case
+
+**If you would like to contribute, open a Issue!**
+
