@@ -15,16 +15,21 @@
 #include <FastLED.h>
 
 // method to call in setup()
-void init_led();
+void setup_led();
 
-// In this file you have to implement some variables & methods
+
+// default methods
 void led_set_color(color_t color);
-
 void led_rc_signal();
+void led_sleep_mode();
 
+
+// animation methods
 #ifdef USE_LED_ANIMATION
-    void led_update();           // update the led
-    void led_set_animation();    // a function which updates the animation depending on system status
+  void led_update();             // update the led (periodic callback)
+  void led_set_animation();      // set the animation depending on system status
+#else
+  #undef LED_FPS
 #endif
 
 

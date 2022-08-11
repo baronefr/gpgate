@@ -17,10 +17,12 @@
 #include <Arduino.h>
 #include <RCSwitch.h>
 #include <TinyGPS++.h>
-#include <avr/sleep.h>
+#include <SoftwareSerial.h>
+#include <LowPower.h>
 
 extern RCSwitch rcsw;
 extern TinyGPSPlus gps;
+extern SoftwareSerial s_gps;  // to disable interface before sleep mode (ISSUE)
 
 // tic-toc variables
 extern unsigned long TIC_gps;     // time of last gps update
@@ -29,11 +31,6 @@ extern unsigned long TIC_status;  // time of last system status change
 extern unsigned long TIC_button;  // keypress time
 
 void button_handler();
-
-// button state variables
-extern boolean BMAIN_active;
-extern boolean BMAIN_long;
-//extern boolean BAUX_active;
 
 // logic methods
 uint system_update(state_t new_state);

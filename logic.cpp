@@ -10,7 +10,14 @@
 
 #include "logic.h"
 
-boolean BMAIN_crit = false;
+
+// button variables
+//  |  handling  BMAIN_* -> main button
+boolean BMAIN_active = false;  // if true, main button has been activated
+boolean BMAIN_long = false;    // if true, main button has been longpressed
+boolean BMAIN_crit = false;    // if true, main button pressed for a very long time...
+
+unsigned long TIC_button;  // keypress time
 
 
 // -----------------
@@ -31,6 +38,8 @@ void rc_send(gateid_t id) {
    Serial.print("[rc] signal sent\n");
   #endif
 }
+
+
 
 // -----------------
 //    BUTTON LOGIC
@@ -58,7 +67,7 @@ void button_critical() {
   #ifdef DEBUG
    Serial.println("[btt] critical press");
   #endif
-  system_update(SYS_SUSP);
+  system_update(SYS_SLEEP);
 }
 
 void button_handler() {
@@ -68,7 +77,7 @@ void button_handler() {
   if(digitalRead(PIN_BMAIN)==HIGH) {
     
     if(!BMAIN_active)  // register time of activation
-      { BMAIN_active=true;  TIC_button = millis(); }
+      { BMAIN_active=true;  TIC_button = this_time; }
     
     if( this_time-TIC_button > BUTTON_LONG_TIME )
       if(!BMAIN_long) { BMAIN_long = true;   button_keypress(); }
@@ -79,16 +88,27 @@ void button_handler() {
     
     if(BMAIN_active) {
       
-      if(BMAIN_long) BMAIN_long=false;
-      else if(BMAIN_crit) BMAIN_crit=false;
+      if(BMAIN_long)
+        { BMAIN_long=false;    }
       else button_action();
       
+      if(BMAIN_crit) BMAIN_crit=false;
       BMAIN_active=false; 
     }
     
   }
   
 }
+
+// -----------------
+//    SLEEP LOGIC
+// -----------------
+
+#ifdef SYS_SLEEP_RESET
+void(* my_reboot)(void) = 0;  // reboot the system after wakeup
+#endif
+
+void wakeUp() {};  
 
 
 
@@ -98,20 +118,17 @@ void button_handler() {
 
 boolean sys_premanual_fixed = false;
 
-void wakeup() {
-  #ifdef DEBUG
-    Serial.println("[sys] wakeup triggered");
-  #endif
-  sleep_disable();
-  detachInterrupt(digitalPinToInterrupt(2));
-}
-
 uint system_update(state_t new_state) {
   // updates system state
   if(sys_state==new_state) return 0;
   
   switch(new_state) {
-    #ifdef DEBUG
+    
+    #ifdef DEBUG  // no need to do something in particular for these...
+    case SYS_BOOT:
+      Serial.println("[sys] boot");
+      break;
+      
     case SYS_UNFIX:
       Serial.println("[sys] switching to UNFIXED state");
       break;
@@ -136,25 +153,42 @@ uint system_update(state_t new_state) {
       #endif
       break;
       
-    case SYS_SUSP:
+    case SYS_SLEEP:
       #ifdef DEBUG
         Serial.println("[sys] switching to sleep state");
       #endif
+      
       TIC_status = millis();
-      sys_state = SYS_SUSP;
+      led_sleep_mode();
+      sys_state = SYS_SLEEP;
 
-      led_set_color(0xFFFFFF);  // set color to white
-      
-      sleep_enable();
-      attachInterrupt(digitalPinToInterrupt(2), wakeup, HIGH);
-      set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-      
-      delay(100);
-      sleep_cpu();  // enters sleep ...
 
-      // ... & resume from here!
-      system_update(SYS_UNFIX);
-      return 0;
+      // -----------------------
+      // entering SLEEP MODE
+      
+      s_gps.end();  // [ISSUE] need to disable serial to enter sleep mode
+      delay(1000);
+    
+      // set wakeup pin
+      attachInterrupt(0, wakeUp, HIGH);
+    
+      // power down state (ADC & BOD module disabled)
+      LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF); 
+
+
+      // -----------------------
+      // revert from SLEEP MODE
+      
+      // Disable external pin interrupt on wake up pin.
+      detachInterrupt(0);
+
+      #ifdef SYS_SLEEP_RESET
+      my_reboot();
+      #endif
+    
+      s_gps.begin(GPS_BAUD);  // [ISSUE] restore gps serial
+      new_state = SYS_UNFIX;
+      led_set_color( gates[sys_current_gate-1].color );
       break;
   }
 
@@ -163,12 +197,6 @@ uint system_update(state_t new_state) {
   TIC_status = millis();  // update time marker of status update
   return 1;
 }
-
-
-// -----------------
-//    SLEEP LOGIC
-// -----------------
-unsigned int suspension_handler(double* dist) { }
 
 
 // -----------------
@@ -236,7 +264,9 @@ void waypoint_handler() {
 gateid_t switch_candidate = 0;
 unsigned char switch_counter = 0;
 
-const size_t SUSP_MARKER = ngates + 1;
+#ifdef SYS_AUTOSLEEP_DIST
+const size_t SLEEP_MARKER = ngates + 1;
+#endif
 
 uint switch_logic(waypoint wp, double* dist) {
   // manage a change of current gate
@@ -244,8 +274,10 @@ uint switch_logic(waypoint wp, double* dist) {
 
   gateid_t cand_gate;  
 
-  if(*dist > SYS_SUSP_DISTANCE) cand_gate = SUSP_MARKER;  // codify suspension
-  else cand_gate = wp.id;   // retrieve gate id from struct
+  if(*dist < SYS_AUTOSLEEP_DIST) cand_gate = wp.id; // retrieve gate id from struct
+  #ifdef SYS_AUTOSLEEP_DIST
+  else cand_gate = SLEEP_MARKER;  // codify sleep (if auto-sleep is enabled)
+  #endif
   
   if(cand_gate == switch_candidate) switch_counter++;
   else { switch_counter = 0;  switch_candidate = cand_gate; return 0; }
@@ -255,8 +287,10 @@ uint switch_logic(waypoint wp, double* dist) {
   
   if(sys_state==SYS_MANUAL)   return 0;  // in manual mode don't do anything
   else if(cand_gate==sys_current_gate) return 0;  // no need to change if currently in right gate!
-  
-  else if(cand_gate==SUSP_MARKER)  system_update(SYS_SUSP);
+
+  #ifdef SYS_AUTOSLEEP_DIST
+  else if(cand_gate==SLEEP_MARKER)  system_update(SYS_SLEEP);
+  #endif
   
   else {
     sys_current_gate = cand_gate;

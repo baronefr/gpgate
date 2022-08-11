@@ -14,7 +14,10 @@
 #include <stddef.h>
 
 
-#define DEBUG    // uncomment to enable debug mode (requires serial monitor)
+// -----------------
+//   debug tools
+// -----------------
+//#define DEBUG    // uncomment to enable debug mode (requires serial monitor)
 //#define DEBUG_MAX_TABLE_LINES 10  //if defined, will print a table with all distances from waypoints
 
 
@@ -33,12 +36,16 @@ typedef char const* rcstr_t;
 #define USB_BAUD 115200  // USB baud rate for config purpose
 #define GPS_BAUD   9600  // GPS module baud rate    //57600
 
-#define PIN_BMAIN   A5   //control button pin  //NEED TO BE 2 or 3 for wake up! TODO
-//#define PIN_BAUX  A4   //temporary 'change' button pin
-#define PIN_GPS_TX  3    //GPS tx-pin
-#define PIN_GPS_RX  2    //GPS rx-pin     // from other sketch: RXPin = 2, TXPin = 3;
-#define PIN_LED     A2   //LED clock contrl pin
-#define PIN_RC      A4   //trasmitter pin      //NOTE: A7 NOT WORKING!
+#define PIN_BMAIN    2   // control button pin
+//      ^^^^^   note:  check if this button can be used to wake up from sleep!
+#define PIN_GPS_TX   7   // GPS tx-pin
+#define PIN_GPS_RX   6   // GPS rx-pin
+#define PIN_LED     A2   // LED clock contrl pin
+#define PIN_RC      A4   // trasmitter pin
+
+#define BUTTON_LONG_TIME   1000   // [ms] time to trigger long button action (manual mode)
+#define BUTTON_CRIT_TIME   5000   // [ms] time to execute critical button keypress action (sleep mode)
+
 
 
 // ----------------
@@ -47,36 +54,41 @@ typedef char const* rcstr_t;
 typedef unsigned char state_t;
 extern state_t sys_state;
 extern bool sys_error;
+extern bool sys_sleep;
 
 #define SYS_UNFIX  0     // gps is unfixed
 #define SYS_FIXED  1     // gps is fixed
 #define SYS_MANUAL 2     // manual mode (when fixed)
 #define SYS_AUTO   3     // revert manual mode
-#define SYS_SUSP   5     // system suspension
-#define SYS_WAKEUP 6     // system wakeup from suspension
+#define SYS_SLEEP  5     // system sleep mode
 
-#define SYS_SUSP_DISTANCE  10000  // [m]  minimum distance to trigger suspension
-#define SYS_MANUAL_TIMEOUT 10000  // [ms] how much time does manual mode persist
+#define SYS_BOOT   8     // boot
+#define SYS_VOID   9     // dummy value (no meaning)
 
-#define BUTTON_LONG_TIME   1000   // [ms] time to trigger the long button action
-#define BUTTON_CRIT_TIME   5000   // [ms] time to execute critical button keypress action
+
+#define SYS_MANUAL_TIMEOUT 15000  // [ms] how much time does manual mode persist
+#define SYS_AUTOSLEEP_DIST 10000  // [m]  minimum distance to auto-trigger sleep mode (undefine to disable auto-sleep)
+#define SYS_SLEEP_RESET           // if defined, the system is reset after waking up from sleep mode
 
 
 // ----------------
 //       GPS
 // ----------------
-#define GPS_WAIT_TIME 1000            // refresh rate of GPS when fixed
-#define GPS_NOT_STABLE_FIX_TIME 5000  //how much time to wait before saying that fix is no longer stable
-#define GPS_STABILITY_THRES 3
-//#define GPS_HDOP_THRES 10.0  //HDOP tolerance under which position is considered to be fixed
+#define GPS_PRELIMINARY_TEST  2500    // [ms] time to wait in setup() to check gps module wiring
+#define GPS_WAIT_TIME         1000    // [ms] refresh rate of GPS logic
+#define GPS_NOT_STABLE_FIX_TIME 5000  // [ms] time to wait before saying that fix is no longer stable
+#define GPS_STABILITY_THRES     3     // how many stable waypoints to wait before considering the fix is stable
+
+//#define GPS_HDOP_THRES 10.0    // HDOP tolerance under which position is considered to be fixed [TODO]
+
 
 // ----------------
 //       LED
 // ----------------
 #define USE_LED_ANIMATION       // undefine to disable animations
-#define LED_FPS 10
-#define LED_ANIMATION_FADE 40        
+#define LED_FPS 10              // be careful... high FPS may cause problems!
 typedef unsigned long color_t;
+
 
 // ----------------
 //      LOGIC
@@ -91,6 +103,6 @@ extern const gate gates[];
 extern const size_t nwps;
 extern const size_t ngates;
 
-#define GATE_SWITCH_THRESH 3
+#define GATE_SWITCH_THRESH 3   // stable waypoints to wait before switching gate
 
 #endif

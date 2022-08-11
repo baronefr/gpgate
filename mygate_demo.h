@@ -9,20 +9,19 @@
 // ---------------
 //   RC settings
 
-#define RC_PULSELEN 420  // pulse length [ms]
+#define RC_PULSELEN 400  // pulse length [ms]
 #define RC_PROTOCOL  10  // trasmission protocol
 
 
 // ---------------
 //    WAYPOINTS
 
-//  entry waypoint is { latitude, longitude, id, label }
+//  entry waypoint is { latitude, longitude, gate number, label }
 const waypoint wps[] = {
                  { 46.23212, 6.04516, 1, "gate1" },  // main entrance
                  { 46.23176, 6.04611, 2, "gate2" },  // exit
                  { 46.23187, 6.04627, 3, "gate3" }   // secondary entrance
                 };
-
 
 
 // ---------------

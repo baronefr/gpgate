@@ -19,6 +19,7 @@
 #define LED_COLOR_ORDER  GRB
 #define LED_NUMBER       7
 #define LED_BRIGHTNESS   20
+#define LED_ANIMATION_FADE  40   
 
 CRGB leds[LED_NUMBER];  // array of led colors
 CRGB tmp_led_register;  // housekeeping led color
@@ -27,22 +28,38 @@ color_t led_color;      // current selected color
 
 void (*led_animator)();   // pointer to animation function
 
-void init_led() {
+void monochrome(unsigned long color) 
+  // set the led ring to given color (monochrome pulse)
+ { for(int i=0;i<LED_NUMBER-1;i++) leds[i]=color; }
+
+CRGB my_white = CRGB(255,255,255);
+ 
+
+// function to call at setup() to init the led array
+void setup_led() {
   // LED setup
   FastLED.addLeds<LED_TYPE,PIN_LED,LED_COLOR_ORDER>(leds, LED_NUMBER).setCorrection(TypicalLEDStrip);
   FastLED.setBrightness(LED_BRIGHTNESS);
 }
 
-void monochrome(unsigned long color)
-  // set the led ring to given color
- { for(int i=0;i<LED_NUMBER-1;i++) leds[i]=color; }
 
+// function to set leds for sleep mode
+void led_sleep_mode() {
+  // turn off all leds
+  FastLED.clear();
+  FastLED.show();
+}
 
+// change the color of the leds
 void led_set_color(color_t color) {
   led_color = color;
   monochrome(led_color);
 }
 
+// led when a signal is sent
+void led_rc_signal() {
+  leds[LED_NUMBER-1] = my_white;
+}
 
 
 #ifdef USE_LED_ANIMATION
@@ -50,7 +67,6 @@ void led_set_color(color_t color) {
 unsigned int led_animation_counter;  // counter for animation update
 
 //  animation patterns
-
 void sinelon() 
  {  // animation 'cycle go and back'
   fadeToBlackBy(leds,LED_NUMBER, LED_ANIMATION_FADE);
@@ -78,14 +94,9 @@ void pulse()
    { monochrome(led_color);  led_animation_counter=0; }
  }
 
-
-void led_rc_signal() {
-  leds[LED_NUMBER-1] = CRGB(255,255,255);
-}
-
+ 
 
 // animation refresh
-
 void led_set_animation() {
   switch(sys_state)
    {
@@ -95,12 +106,14 @@ void led_set_animation() {
         led_animator = spiral;   break;
     case SYS_MANUAL: 
         led_animator = dual;     break;
+    case SYS_BOOT:
+        led_animator = pulse;    break;
    }
   led_animation_counter=0;
 }
- 
-void led_update()
- {
+
+// function for periodic callback (animation)
+void led_update() {
   // call the current animation (through pointer)
   led_animator();
   
@@ -109,5 +122,6 @@ void led_update()
   
   FastLED.show();
  }
+
 
 #endif
